@@ -1,0 +1,267 @@
+---
+title: "Estudo de Caso: Coronavírus nos Países dos Brics"
+author: "Fellipe Porto"
+date: "24/11/2020"
+output: html_document
+---
+
+```{undefined message=FALSE, warning=FALSE}
+# carregando os pacotes
+
+library(dplyr)
+library(zoo)
+library(lubridate)
+library(patchwork)
+library(coronavirus)
+library(ggplot2)
+library(ggthemes)
+library(extrafont)
+
+
+
+# explorando os dados 
+
+data("coronavirus")
+
+````
+
+
+# Estudo de caso sobre os países do BRICS
+
+Há muitos critérios para agrupar países e fazer uma análise, indepedente de qual natureza ela seja. Continente, língua, fronteiras marítimas, etc. Algo que não é tão claro com os países do BRICS, pois não há nada que ligue os cinco países simultaneamente: não são banhados pelos mesmo mares, não são todos do mesmo continente e muito menos existe uma proximidade cultural. Porém é a situção econômica que dá a liga entre eles. O BRICS é um nome designado para os países que tinham uma economia emergente e poderiam se tornar as 5 maiores economias do mundo. O grupo é formado por Brasil, Rússia, Índia, China e África do Sul. Apesar do termo BRICS ser uma categoria acadêmica, ele entrou para o calendário diplomático desses países se tornando ponto de interesse comum e de reconhecimento entre si para negociações econômicas.  Contudo, após a pandemia de COVID 19 em 2020, há mais algum fator que aproxime os países do BRICS entre si, além da situação de economias emergentes? É o que tentarei responder com essa atividade. Os dados são do banco de dados The 2019 Novel Coronavirus COVID-19 (2019-nCoV) Dataset, do dia 24/11/2020.
+
+
+
+Em um primeiro momento, iremos analisar o número total de casos no mundo e tentar observar algum padrão com a atenção voltada para o BRICS.
+
+````{r}
+
+# top 30 números de casos
+
+coronavirus %>%
+  filter(type == 'confirmed') %>%
+  group_by(country) %>%
+  summarise(casos_totais = sum(cases)) %>%
+  arrange(-casos_totais) %>%
+  print(n = 30)
+
+# casos na China
+
+coronavirus %>%
+  filter(type == 'confirmed', country == 'China') %>%
+  summarise(total_cases = sum(cases)) 
+
+````
+
+Como é possível observar, Índia, Brasil e Rússia ocupam, respectivamente, segundo, terceiro e quinto lugar no número de casos totais. Isso são três dos cinco países dos BRICS que estão no top 5 países com maior número total de casos. Africa do Sul ocupa a #16 posição e a China, apesar de ser o foco inicial do COVID 19, nem mesmo aparece no top 30, possuindo um total de 92.116 casos.
+
+Agora vamos observar a evolução dos casos confirmados de COVID 19 nos países que fazem parte do BRICS. 
+
+````{r}
+
+#### filtrando os dados apenas para os países do brics
+brics_cases <- coronavirus %>%
+  filter(country %in% c('Brazil',
+                        'Russia',
+                        'India', 
+                        'South Africa'), 
+         type == 'confirmed')%>%
+  select(date, country, type, cases) %>%
+  tibble::as.tibble()
+
+china_casos <- coronavirus %>%
+  filter(country %in% c('China'), type == 'confirmed')%>%
+  select(date, country, type, cases)%>%
+  group_by(date)%>%
+  mutate(tot_cases = sum(cases)) %>%
+  select(-cases) %>%
+  distinct()%>%
+  rename(cases = tot_cases) %>%
+  tbl_df()
+
+brics_cases <- brics_cases %>% rbind(china_casos) 
+
+
+
+#### plotando 
+
+brics_cases %>% 
+  ggplot(aes(x = date, y = cases, col = country))+
+  geom_line(size = 1)+
+  scale_color_discrete(name = 'Países', labels = c('Brasil', 
+                                                   'China', 
+                                                   'Índia', 
+                                                   'Rússia', 
+                                                   'África do Sul'))+
+  theme_tufte()+
+  theme(text = element_text(family = 'Rubik'), 
+        legend.position = 'top')+
+  labs(title = 'Evolução de casos dos países do BRICS', 
+       x = 'Data', 
+       y = 'Casos')
+    
+
+
+
+````
+
+É possível observar que logo após abril, todos os países analisados, com exceção da China, sofreram uma alta nos casos, com o Brasil possuindo o maior número de casos, mas sendo, posteriormente, ultrapassado pela Índia, que teve um grande aumento de casos após Julho, superando o Brasil nos meses seguinte, e sendo, atualmente, o país com mais casos. 
+
+O gráfico seguinte trata da evolução do número de mortes em cada país.
+
+````{r}
+
+## numero de óbitos 
+
+## numero de óbitos 
+
+brics_deaths <- coronavirus %>%
+  filter(country %in% c('Brazil',
+                        'Russia',
+                        'India', 
+                        'South Africa'), 
+         type == 'death')%>%
+  select(date, country, type, cases) %>%
+  tibble::as.tibble()
+
+china_mortes <- coronavirus %>%
+  filter(country %in% c('China'), type == 'death')%>%
+  select(date, country, type, cases)%>%
+  group_by(date)%>%
+  mutate(tot_cases = sum(cases)) %>%
+  select(-cases) %>%
+  distinct()%>%
+  rename(cases = tot_cases) %>%
+  tbl_df()
+
+brics_deaths <- brics_deaths %>% rbind(china_mortes) %>%
+  mutate(casos_acumulados = cumsum(cases))
+
+#### plotando
+
+brics_deaths %>% 
+  ggplot(aes(x = date, y = cases, col = country))+
+  geom_line(size = 1)+
+  scale_color_discrete(name = 'Países', labels = c('Brasil', 
+                                                   'China', 
+                                                   'Índia', 
+                                                   'Rússia', 
+                                                   'África do Sul'))+
+  theme_tufte()+
+  theme(text = element_text(family = 'Rubik'), 
+        legend.position = 'top')+
+  labs(title = 'Evolução de óbitos dos países do BRICS', 
+       x = 'Data', 
+       y = 'Mortes')
+
+
+````
+
+Observando as linhas, é possível perceber que quatro dos cinco países - sendo eles China, Brasil, Índia e Rússia - tiveram picos de morte de mais de 1000 casos. É possível observar também que a linha do Brasil é a que permanece alta por mais tempo, resultando em um maior número de mortes ao longo dos meses. 
+
+Para minimizar as diferenças diárias, o próximo gráfico tratará da média móvel de morte em cada país. 
+
+````{r}
+
+## média móvel por pais 
+
+brics_deaths %>%
+  group_by(country) %>%
+  mutate(mediaMovel = zoo::rollmean(cases, k = 7, fill = NA))%>%
+  tbl_df()%>%
+  ggplot(aes(x=date)) +  
+  geom_bar(aes(y = cases), stat = "identity", fill = "grey") +
+  geom_line(mapping=aes(x = date, y = mediaMovel), color="red")+
+  facet_wrap(~country, ncol = 2, scales = 'free')+
+  theme_tufte()+
+  theme(text = element_text(family = 'Rubik'))+
+  labs(title = "Óbitos nos países do BRICS",
+       subtitle = 'Média móvel de 7 dias',
+       y = "Óbitos",
+       x = "Data")
+````
+
+Com a comparação, fica claro a situação singular do Brasil entre os países do BRICS: possui uma média móvel de 1000 mortes semanais durante um período de tempo muito longo. Nenhum dos outros 4 países possuem desempenho comparável. Chama a atenção a grande alta de mortes, que é acompanhada pela média móvel, na Rússia após Outubro, que deve acender um alerta para as autoridades locais. 
+
+````{r}
+
+# total de mortes em cada país
+
+total_br <-  coronavirus %>%
+  filter(country == 'Brazil', type == 'death') %>%
+  group_by(country) %>%
+  summarise(total = sum(cases)) %>%
+  as.data.frame(t(total_br))
+  
+total_chi <-  coronavirus %>%
+  filter(country == 'China', type == 'death') %>%
+  group_by(country) %>%
+  summarise(total = sum(cases)) %>%
+  as.data.frame(t(total_chi))
+
+total_ru <-  coronavirus %>%
+  filter(country == 'Russia', type == 'death') %>%
+  group_by(country) %>%
+  summarise(total = sum(cases))
+
+total_af <-  coronavirus %>%
+  filter(country == 'South Africa', type == 'death') %>%
+  group_by(country) %>%
+  summarise(total = sum(cases))
+
+total_in <-  coronavirus %>%
+  filter(country == 'India', type == 'death') %>%
+  group_by(country) %>%
+  summarise(total = sum(cases))
+
+totalMortes <- print(c(total_br, total_in, total_ru, total_in, total_chi))
+
+
+````
+
+As mortes no Brasil são as mais preocupantes, passando de 150.000 óbitos em poucos meses. A África do Sul não fica muito atrás, ultrapassando a barreira de 100.000 mortes. Já as mortes de China, Índia e Rússia, individualmente, não passam de 50.000. 
+
+Com o objetivo de entender os óbitos de maneira mais apropriada, os códigos a seguir irão tratar os dados com o objetivo de chegar às mortes por milhão de habitantes, métrica mais precisa, pois ignora a divergência de habitantes que existe entre cada país. As informações à respeito da população de cada país pode ser acessada [aqui](https://pt.wikipedia.org/wiki/BRICS).
+
+
+````{r}
+# mortes por milhao em cada pais do brics
+
+
+## mortes por milhão 
+
+hab_br <- 215967714
+hab_in <- 1180251000
+hab_chi <- 1338612968
+hab_af <- 49320500
+hab_ru <- 141927297
+
+mMilhao_br <- (total_br[,2]/hab_br)*1000000
+mMilhao_in <- (total_in[,2]/hab_in)*1000000
+mMilhao_chi <- (total_chi[,2]/hab_chi)*1000000
+mMilhao_af <- (total_af[,2]/hab_af)*1000000
+mMilhao_ru <- (total_ru[,2]/hab_ru)*1000000
+
+
+#### plotando 
+
+mMilhao_brics <- as.data.frame(c(mMilhao_br, mMilhao_af, mMilhao_ru, mMilhao_in, mMilhao_chi)) 
+
+mMilhao_brics <- mMilhao_brics %>%
+  rename(Brasil = X783.371721941734,
+         AfricadoSul  = total,
+         Russia =  total.1,
+         India = total.2,
+         China = X3.54247277843494)
+
+rownames(mMilhao_brics) <- 'Mortes por Milhão'
+
+mMilhao_brics
+````
+O Brasil é disparado o país com mais mortes por milhão de habitantes, seguido de África do Sul e Rússia. A china, tem a menor taxa de mortos por milhão dos BRICS. 
+
+Entre os países do BRICS, apenas a China não teve uma explosão de casos e mortes, e, mesmo sendo o país inicial do COVID 19, soube controlar muito bem a pandemia. Os demais países não conseguiram ter sucesso. Todos eles tiveram muitas mortes e muitos casos, sendo que Brasil e Índia conseguem ter números altos para as duas categorias.
+
+Após esse breve estudo, é possível afirmar que os BRICS, com exceção da China, tem por semelhança desempenhos de combate à pandemia do COVID 19 muito ruins, com muitos casos confirmados e mortes, seja por comparação absoluta ou proporcional. 
+
+
